@@ -3,9 +3,9 @@ cffi<=1.12.3
 pycparser==2.19
 pymunk==5.5.0
 numpy>=1.16.0
-torch>=1.7 # check if you're on 3090 machine, may need different torch install
-torchvision
-tensorboard>=2.0
+#torch>=1.7 # check if you're on 3090 machine, may need different torch install
+#torchvision
+#tensorboard>=2.0
 matplotlib
 pillow
 h5py
