@@ -32,6 +32,22 @@ from ndf_robot.utils.eval_gen_utils import (
     process_demo_data_rack, process_demo_data_shelf, process_xq_data, process_xq_rs_data, safeRemoveConstraint,
 )
 
+def get_demo_pose_ori(grasp_data, get_jpos=False):
+    data_dict = {}
+    grasp_data_dict = dict(grasp_data)
+    shapenet_id = grasp_data_dict['shapenet_id'].item()
+    obj_pose_world = grasp_data_dict['obj_pose_world']
+    pos = obj_pose_world[:3]
+    ori = obj_pose_world[3:]
+    data_dict['shapenet_id'] = shapenet_id
+    data_dict['obj_pos'] = pos
+    data_dict['obj_ori'] = ori
+
+    if get_jpos:
+        robot_joints = grasp_data_dict['robot_joints']
+        data_dict['robot_joints'] = robot_joints
+    return data_dict
+
 
 def main(args, global_dict):
     if args.debug:
@@ -141,6 +157,10 @@ def main(args, global_dict):
     place_success_teleport_list = []
     grasp_success_list = []
 
+    place_fail_list = []
+    place_fail_teleport_list = []
+    grasp_fail_list = []
+
     demo_shapenet_ids = []
 
     # get info from all demonstrations
@@ -156,10 +176,18 @@ def main(args, global_dict):
         print(grasp_demo_filenames, place_demo_filenames)
     else:
         log_warn('USING ALL %d DEMONSTRATIONS' % len(grasp_demo_filenames))
+    train_ids = []
+    for iteration in range(len(place_demo_filenames)):
+        place_demo_fn = place_demo_filenames[iteration]
+        place_data = np.load(place_demo_fn, allow_pickle=True)
+        demo_dict = get_demo_pose_ori(place_data, get_jpos=True)
+
+        shapenet_id = demo_dict['shapenet_id']
+        train_ids.append(shapenet_id)
 
     grasp_demo_filenames = grasp_demo_filenames[:args.num_demo]
     place_demo_filenames = place_demo_filenames[:args.num_demo]
-
+    log_info("num_demo_used:{}".format(len(place_demo_filenames)))
 
     max_bb_volume = 0
     place_xq_demo_idx = 0
@@ -225,6 +253,16 @@ def main(args, global_dict):
     grasp_optimizer.set_demo_info(demo_target_info_list)
     place_optimizer.set_demo_info(demo_rack_target_info_list)
 
+    # # get objects that we can use for testing
+    # test_object_ids = []
+    # shapenet_id_list = [fn.split('_')[0] for fn in os.listdir(
+    #     shapenet_obj_dir)] if obj_class == 'mug' else os.listdir(shapenet_obj_dir)
+    # for s_id in shapenet_id_list:
+    #     valid = s_id not in demo_shapenet_ids and s_id not in avoid_shapenet_ids and s_id not in train_ids
+
+    #     if valid:
+    #         test_object_ids.append(s_id)
+
     # get objects that we can use for testing
     test_object_ids = []
     shapenet_id_list = [fn.split('_')[0] for fn in os.listdir(shapenet_obj_dir)] if obj_class == 'mug' else os.listdir(shapenet_obj_dir)
@@ -286,11 +324,19 @@ def main(args, global_dict):
             p.changeVisualShape(obj_id, link_id, rgbaColor=color)
 
     viz_data_list = []
+    log_info("len(test_object_ids):{}".format(len(test_object_ids)))
+    # for iteration in range(len(test_object_ids)):
     for iteration in range(args.start_iteration, args.num_iterations):
         # load a test object
         obj_shapenet_id = random.sample(test_object_ids, 1)[0]
+        # obj_shapenet_id = test_object_ids[iteration]
         id_str = 'Shapenet ID: %s' % obj_shapenet_id
         log_info(id_str)
+        f = open(txt_file_name, "a")
+        f.write("-----------------------{}-----------------------\n".format(iteration))
+        f.write(id_str)
+        f.write("\n")
+        f.close()
 
         viz_dict = {}  # will hold information that's useful for post-run visualizations
         eval_iter_dir = osp.join(eval_save_dir, 'trial_%d' % iteration)
@@ -527,6 +573,8 @@ def main(args, global_dict):
         touching_surf = len(obj_surf_contacts) > 0
         place_success_teleport = touching_surf
         place_success_teleport_list.append(place_success_teleport)
+        if not place_success_teleport:
+            place_fail_teleport_list.append(iteration)
 
         time.sleep(1.0)
         safeCollisionFilterPair(obj_id, table_id, -1, -1, enableCollision=True)
@@ -558,18 +606,51 @@ def main(args, global_dict):
                 safeCollisionFilterPair(bodyUniqueIdA=robot.arm.robot_id, bodyUniqueIdB=obj_id, linkIndexA=i, linkIndexB=-1, enableCollision=False, physicsClientId=robot.pb_client.get_client_id())
             robot.arm.eetool.open()
 
-            if jnt_pos is None or grasp_jnt_pos is None: 
+            if jnt_pos is None or grasp_jnt_pos is None:
                 jnt_pos = ik_helper.get_feasible_ik(pre_pre_grasp_ee_pose)
                 grasp_jnt_pos = ik_helper.get_feasible_ik(pre_grasp_ee_pose)
+
+                f = open(txt_file_name, "a")
+                if jnt_pos == None:
+                    f.write("loop1 jnt_pos:{}\n".format(jnt_pos))
+                else:
+                    f.write("loop1 jnt_pos: not NONE \n")
+                if grasp_jnt_pos == None:
+                    f.write("loop1 grasp_jnt_pos:{} \n".format(grasp_jnt_pos))
+                else:
+                    f.write("loop1 grasp_jnt_pos: not NONE \n")
+                f.close()
 
                 if jnt_pos is None or grasp_jnt_pos is None:
                     jnt_pos = ik_helper.get_ik(pre_pre_grasp_ee_pose)
                     grasp_jnt_pos = ik_helper.get_ik(pre_grasp_ee_pose)
 
+                    f = open(txt_file_name, "a")
+                    if jnt_pos == None:
+                        f.write("loop2 jnt_pos:{}\n".format(jnt_pos))
+                    else:
+                        f.write("loop2 jnt_pos: not NONE \n")
+                    if grasp_jnt_pos == None:
+                        f.write("loop2 grasp_jnt_pos:{} \n".format(grasp_jnt_pos))
+                    else:
+                        f.write("loop2 grasp_jnt_pos: not NONE \n")
+                    f.close()
+
                     if jnt_pos is None or grasp_jnt_pos is None:
                         jnt_pos = robot.arm.compute_ik(pre_pre_grasp_ee_pose[:3], pre_pre_grasp_ee_pose[3:])
                         grasp_jnt_pos = robot.arm.compute_ik(pre_grasp_ee_pose[:3], pre_grasp_ee_pose[3:])  # this is the pose that's at the grasp, where we just need to close the fingers
 
+                        f = open(txt_file_name, "a")
+                        if jnt_pos == None:
+                            f.write("loop3 jnt_pos:{}\n".format(jnt_pos))
+                        else:
+                            f.write("loop3 jnt_pos: not NONE \n")
+                        if grasp_jnt_pos == None:
+                            f.write("loop3 grasp_jnt_pos:{} \n".format(
+                                grasp_jnt_pos))
+                        else:
+                            f.write("loop3 grasp_jnt_pos: not NONE \n")
+                        f.close()
             if grasp_jnt_pos is not None and jnt_pos is not None:
                 if g_idx == 0:
                     robot.pb_client.set_step_sim(True)
@@ -580,11 +661,22 @@ def main(args, global_dict):
                     grasp_img_fname = osp.join(eval_grasp_imgs_dir, '%d.png' % iteration)
                     np2img(grasp_rgb.astype(np.uint8), grasp_img_fname)
                     continue
-                
+
                 ########################### planning to pre_pre_grasp and pre_grasp ##########################
                 if grasp_plan is None:
-                    plan1 = ik_helper.plan_joint_motion(robot.arm.get_jpos(), jnt_pos)
-                    plan2 = ik_helper.plan_joint_motion(jnt_pos, grasp_jnt_pos)
+                    plan1 = ik_helper.plan_joint_motion(robot.arm.get_jpos(), jnt_pos, file_name=txt_file_name)
+                    plan2 = ik_helper.plan_joint_motion(jnt_pos, grasp_jnt_pos, file_name=txt_file_name)
+
+                    f = open(txt_file_name, "a")
+                    if plan1 == None:
+                        f.write("plan1:{}\n".format(plan1))
+                    else:
+                        f.write("plan1: not NONE \n")
+                    if plan2 == None:
+                        f.write("plan2:{} \n".format(plan2))
+                    else:
+                        f.write("plan2: not NONE \n")
+                    f.close()
                     if plan1 is not None and plan2 is not None:
                         grasp_plan = plan1 + plan2
 
@@ -701,15 +793,34 @@ def main(args, global_dict):
 
         place_success_list.append(place_success)
         grasp_success_list.append(grasp_success)
+        if not place_success:
+            place_fail_list.append(iteration)
+        if not grasp_success:
+            grasp_fail_list.append(iteration)
         log_str = 'Iteration: %d, ' % iteration
         kvs = {}
-        kvs['Place Success'] = sum(place_success_list) / float(len(place_success_list))
-        kvs['Place [teleport] Success'] = sum(place_success_teleport_list) / float(len(place_success_teleport_list))
-        kvs['Grasp Success'] = sum(grasp_success_list) / float(len(grasp_success_list))
+        kvs['Place Success Rate'] = sum(place_success_list) / float(len(place_success_list))
+        kvs['Place [teleport] Success Rate'] = sum(place_success_teleport_list) / float(len(place_success_teleport_list))
+        kvs['Grasp Success Rate'] = sum(grasp_success_list) / float(len(grasp_success_list))
+        kvs['Place Success'] = place_success_list[-1]
+        kvs['Place [teleport] Success'] = place_success_teleport_list[-1]
+        kvs['Grasp Success'] = grasp_success_list[-1]
+
         for k, v in kvs.items():
             log_str += '%s: %.3f, ' % (k, v)
         id_str = ', shapenet_id: %s' % obj_shapenet_id
         log_info(log_str + id_str)
+        f = open(txt_file_name, "a")
+        f.write("{} \n".format("place success"))
+        f.write(str(bool(place_success_list[-1])))
+        f.write("\n")
+        f.write("{} \n".format("Place [teleport] Success"))
+        f.write(str(bool(place_success_teleport_list[-1])))
+        f.write("\n")
+        f.write("{} \n".format("Grasp Success"))
+        f.write(str(bool(grasp_success_list[-1])))
+        f.write("\n")
+        f.close()
 
         eval_iter_dir = osp.join(eval_save_dir, 'trial_%d' % iteration)
         if not osp.exists(eval_iter_dir):
@@ -738,6 +849,45 @@ def main(args, global_dict):
         )
 
         robot.pb_client.remove_body(obj_id)
+    overall_success_num = 0
+    for i in range(len(place_success_list)):
+        if place_success_teleport_list[i] == 1 and grasp_success_list[i] == 1:
+
+            overall_success_num += 1
+    final_kvs = {}
+    final_kvs['overall success Rate'] = overall_success_num / \
+        float(len(place_success_list))
+
+    for k, v in final_kvs.items():
+
+        log_str = '%s: %.3f, ' % (k, v)
+    id_str = ', shapenet_id: %s' % obj_shapenet_id
+    log_info(log_str + id_str)
+
+    f = open(txt_file_name, "a")
+    f.write("{} \n".format("RATE place success"))
+    f.write(str(sum(place_success_list) / float(len(place_success_list))))
+    f.write("\n")
+    f.write("{} \n".format("RATE Place [teleport] Success"))
+    f.write(str(sum(place_success_teleport_list) /
+            float(len(place_success_teleport_list))))
+    f.write("\n")
+    f.write("{} \n".format("Rate Grasp Success"))
+    f.write(str(sum(grasp_success_list) / float(len(grasp_success_list))))
+    f.write("\n")
+    f.close()
+
+    f = open(txt_file_name, "a")
+    f.write("{} \n".format("place_fail_list"))
+    f.write(str(place_fail_list))
+    f.write("\n")
+    f.write("{} \n".format("place_fail_teleport_list"))
+    f.write(str(place_fail_teleport_list))
+    f.write("\n")
+    f.write("{} \n".format("grasp_fail_list"))
+    f.write(str(grasp_fail_list))
+    f.write("\n")
+    f.close()
 
 
 if __name__ == "__main__":
@@ -746,27 +896,27 @@ if __name__ == "__main__":
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--num_samples', type=int, default=100)
     parser.add_argument('--data_dir', type=str, default='data')
-    parser.add_argument('--eval_data_dir', type=str, default='eval_data')
-    parser.add_argument('--demo_exp', type=str, default='debug_label')
-    parser.add_argument('--exp', type=str, default='debug_eval')
+    parser.add_argument('--eval_data_dir', type=str, default='eval_data_demo_5')
+    parser.add_argument('--demo_exp', type=str, default='grasp_rim_hang_handle_gaussian_precise_w_shelf')
+    parser.add_argument('--exp', type=str, default='test_mug_eval')
     parser.add_argument('--object_class', type=str, default='mug')
-    parser.add_argument('--opt_iterations', type=int, default=250)
-    parser.add_argument('--num_demo', type=int, default=12, help='number of demos use')
+    parser.add_argument('--opt_iterations', type=int, default=500)
+    parser.add_argument('--num_demo', type=int, default=1, help='number of demos use')
     parser.add_argument('--any_pose', action='store_true')
     parser.add_argument('--num_iterations', type=int, default=100)
     parser.add_argument('--resume_iter', type=int, default=0)
-    parser.add_argument('--config', type=str, default='base_cfg')
-    parser.add_argument('--model_path', type=str, required=True)
-    parser.add_argument('--save_vis_per_model', action='store_true')
+    parser.add_argument('--config', type=str, default='eval_mug_gen')
+    parser.add_argument('--model_path', type=str, required=False, default='multi_category_weights')
+    parser.add_argument('--save_vis_per_model', action='store_true', default=True)
     parser.add_argument('--noise_scale', type=float, default=0.05)
     parser.add_argument('--noise_decay', type=float, default=0.75)
-    parser.add_argument('--pybullet_viz', action='store_true')
+    parser.add_argument('--pybullet_viz', action='store_true', default=True)
     parser.add_argument('--dgcnn', action='store_true')
     parser.add_argument('--random', action='store_true', help='utilize random weights')
     parser.add_argument('--early_weight', action='store_true', help='utilize early weights')
     parser.add_argument('--late_weight', action='store_true', help='utilize late weights')
-    parser.add_argument('--rand_mesh_scale', action='store_true')
-    parser.add_argument('--only_test_ids', action='store_true')
+    parser.add_argument('--rand_mesh_scale', action='store_true', default=True)
+    parser.add_argument('--only_test_ids', action='store_true', default=True)
     parser.add_argument('--all_cat_model', action='store_true', help='True if we want to use a model that was trained on multipl categories')
     parser.add_argument('--n_demos', type=int, default=0, help='if some integer value greater than 0, we will only use that many demonstrations')
     parser.add_argument('--acts', type=str, default='all')
@@ -796,7 +946,7 @@ if __name__ == "__main__":
     util.safe_makedirs(eval_save_dir)
 
     vnn_model_path = osp.join(path_util.get_ndf_model_weights(), args.model_path + '.pth')
-
+    txt_file_name = "{}.txt".format(args.eval_data_dir)
     global_dict = dict(
         shapenet_obj_dir=shapenet_obj_dir,
         demo_load_dir=demo_load_dir,
