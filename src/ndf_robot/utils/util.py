@@ -379,6 +379,10 @@ def interpolate_pose(pose_initial, pose_final, N, frac=1):
     return pose_interp
 
 
+def get_se3(T):
+    return matrix_from_pose(T)
+
+
 def transform_pose(pose_source, pose_transform):
     T_pose_source = matrix_from_pose(pose_source)
     T_transform_source = matrix_from_pose(pose_transform)

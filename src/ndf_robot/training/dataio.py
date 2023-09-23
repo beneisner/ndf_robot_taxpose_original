@@ -11,7 +11,7 @@ from ndf_robot.utils import path_util, geometry
 
 
 class JointOccTrainDataset(Dataset):
-    def __init__(self, sidelength, depth_aug=False, multiview_aug=False, phase='train', obj_class='all'):
+    def __init__(self, sidelength=None, depth_aug=False, multiview_aug=False, phase='train', obj_class='all'):
 
         # Path setup (change to folder where your training data is kept)
         ## these are the names of the full dataset folders

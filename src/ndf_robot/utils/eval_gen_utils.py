@@ -88,11 +88,11 @@ def object_is_still_grasped(robot, obj_id, right_pad_id, left_pad_id):
     return obj_still_in_grasp
 
 
-def get_ee_offset(ee_pose):
+def get_ee_offset(ee_pose, dist=0.1):
     """
     Gets the updated world frame normal direction of the palms
     """
-    dist = 0.1
+    dist = dist
     normal_x = util.list2pose_stamped([dist, 0, 0, 0, 0, 0, 1])
     normal_y = util.list2pose_stamped([0, dist, 0, 0, 0, 0, 1])
     normal_z = util.list2pose_stamped([0, 0, dist, 0, 0, 0, 1])

@@ -1,10 +1,10 @@
 if [ -z $NDF_SOURCE_DIR ]; then echo 'Please source "ndf_env.sh" first'
 else
 # full dataset (~150 GB)
-wget -O ndf_mug_data.tar.gz https://www.dropbox.com/s/42owfein4jtobd5/ndf_mug_data.tar.gz?dl=0
-wget -O ndf_bottle_data.tar.gz https://www.dropbox.com/s/n90491hu386pg0y/ndf_bottle_data.tar.gz?dl=0
-wget -O ndf_bowl_data.tar.gz https://www.dropbox.com/s/q3evi7e39wkhetr/ndf_bowl_data.tar.gz?dl=0
-wget -O ndf_occ_data.tar.gz https://www.dropbox.com/s/ok4fb045z7v8cpp/ndf_occ_data.tar.gz?dl=0
+wget -O ndf_mug_data.tar.gz https://www.dropbox.com/s/42owfein4jtobd5/ndf_mug_data.tar.gz?dl=0 --no-check-certificate
+wget -O ndf_bottle_data.tar.gz https://www.dropbox.com/s/n90491hu386pg0y/ndf_bottle_data.tar.gz?dl=0 --no-check-certificate
+wget -O ndf_bowl_data.tar.gz https://www.dropbox.com/s/q3evi7e39wkhetr/ndf_bowl_data.tar.gz?dl=0 --no-check-certificate
+wget -O ndf_occ_data.tar.gz https://www.dropbox.com/s/ok4fb045z7v8cpp/ndf_occ_data.tar.gz?dl=0 --no-check-certificate
 mkdir -p $NDF_SOURCE_DIR/data/training_data
 mv ndf_*_data.tar.gz $NDF_SOURCE_DIR/data/training_data
 sleep 5 

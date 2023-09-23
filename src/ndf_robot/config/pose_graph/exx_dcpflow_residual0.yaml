@@ -1,0 +1,68 @@
+hydra: 
+  run:
+    dir: ${log_dir}/${experiment}/${now:%Y-%m-%d_%H%M%S}
+  sweep:
+    dir: ${log_dir}/${experiment}/sweep/${now:%Y-%m-%d_%H%M%S}
+    subdir: ${hydra.job.num}
+
+experiment: equiv_dcpflow
+seed: 0
+
+checkpoint_file: /home/exx/media/DataDrive/singularity_chuerp/equiv_pgraph_logs/train_test_mr_dcpflow_residual0/equiv_dcpflow/version_9/checkpoints/epoch=410-step=51375.ckpt
+# checkpoint_file: Null
+# Model Settings
+flow_compute_type: 0
+# 0 for f(\phi_i) + \tilde{y}_i - x_i
+# 1 for v_i = f(\phi_i,\tilde{\phi}_i) + \tilde{y}_i - x_i
+# 2 for v_i = f(\phi_i,\tilde{y}_i) + \tilde{y}_i -x_i
+# 3 for v_i = f(\phi_i,\tilde{y}_i - x_i) 
+# 4 for v_i = f(\phi_i,\tilde{y}_i)
+
+# Default Args from DCP 
+# https://github.com/WangYueFt/dcp/blob/master/main.py
+model: dcp
+emb_nn: dgcnn
+pointer: transformer
+head: mlp
+emb_dims: 512
+n_blocks: 1
+n_heads: 4
+ff_dims: 1024
+dropout: 0.0
+use_sgd: False
+momentum: 0.9
+cycle: False
+gaussian_noise: False
+factor: 4
+num_points: 1024
+# dropout: 0.5
+# emb_dims: 512
+# n_knn: 20
+# ori_type: 0
+# normalize: False
+
+# Dataset Settings
+dataset_root: /home/exx/Documents/ndf_robot/train_data_3/renders
+test_dataset_root: /home/exx/Documents/ndf_robot/test_data_3/renders
+dataset_index: 100
+action_class: 0
+anchor_class: 1
+dataset_size: 1000
+rotation_variance: 5
+translation_variance: 0.1
+batch_size: 8
+num_workers: 64
+cloud_type: teleport
+
+# Loss Settings
+lr: 1e-4
+delta_weight: 1
+mse_grad_max: 0.05
+variance_weight: 0
+target_variance: Null
+variance_type: svd
+variance_loss_type: mse
+
+# Logging Settings
+log_dir: /home/exx/media/DataDrive/singularity_chuerp/equiv_pgraph_logs/train_test_mr_dcpflow_residual0 
+image_logging_period: 100

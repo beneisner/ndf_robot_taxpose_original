@@ -205,11 +205,12 @@ class FrankaIK:
         print('Failed to get feasible IK')
         return None
     
-    def plan_joint_motion(self, start, goal, alg='rrt_star', max_time=5.0):
+    def plan_joint_motion(self, start, goal, alg='rrt_star', max_time=5.0, file_name=None):
         self.set_jpos(start)
+        print("obstacles ----------------------:{}".format(self.obstacle_dict.values()))
         plan = plan_joint_motion(
             self.robot, self.ik_joints, goal, obstacles=self.obstacle_dict.values(), self_collisions=True, 
-            disabled_collisions=set(self.panda_ignore_pairs), algorithm=alg, max_time=max_time)
+            disabled_collisions=set(self.panda_ignore_pairs), algorithm=alg, max_time=max_time, file_name=file_name)
         return plan
 
     def _retract(self):
