@@ -175,6 +175,8 @@ pyrightconfig.json
 
 # End of https://www.toptal.com/developers/gitignore/api/python
 
+.vscode
+
 # Things that ndf_robot asks you to download.
 src/ndf_robot/assets/
 src/ndf_robot/eval_data/
@@ -242,3 +244,21 @@ train_new_0_pregrasp_any_pose/
 train_new_1_pregrasp/
 train_new_data_3/
 two_handle_mug_3/
+
+# Some various visualization files that don't seem relevant.
+debug_viz/
+src/ndf_robot/eval/raw.githubusercontent.com/
+src/ndf_robot/eval/visualization/
+visualization/
+
+# Other random eval files.
+src/ndf_robot/eval/*.txt
+src/ndf_robot/eval/misc/
+src/ndf_robot/eval/*.npy
+src/ndf_robot/eval/*.npz
+
+# vhacd garbo.
+log.txt
+
+# other garbage.
+test_data.txt
